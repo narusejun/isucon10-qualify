@@ -62,5 +62,7 @@ kataru:
 before:
 	$(eval when := $(shell date "+%s"))
 	mkdir -p ~/logs/$(when)
+	sudo touch $(NGX_LOG)
+	sudo touch $(MYSQL_LOG)
 	sudo mv -f $(NGX_LOG) ~/logs/$(when)/
 	sudo mv -f $(MYSQL_LOG) ~/logs/$(when)/
