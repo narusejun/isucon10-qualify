@@ -32,6 +32,12 @@ var estateSearchCondition EstateSearchCondition
 var lowPricedChair *ChairListResponse
 var lowPricedChairMutex sync.RWMutex
 
+// chairのfeature -> feature idへのマップ
+var chairFeatureMap = map[string]int{}
+
+// estateのfeature -> feature idへのマップ
+var estateFeatureMap = map[string]int{}
+
 type InitializeResponse struct {
 	Language string `json:"language"`
 }
@@ -234,12 +240,20 @@ func init() {
 	}
 	json.Unmarshal(jsonText, &chairSearchCondition)
 
+	for i, s := range chairSearchCondition.Feature.List {
+		chairFeatureMap[s] = i
+	}
+
 	jsonText, err = ioutil.ReadFile("../fixture/estate_condition.json")
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		os.Exit(1)
 	}
 	json.Unmarshal(jsonText, &estateSearchCondition)
+
+	for i, s := range estateSearchCondition.Feature.List {
+		estateFeatureMap[s] = i
+	}
 }
 
 func main() {
@@ -307,6 +321,84 @@ func initialize(c echo.Context) error {
 			sqlFile,
 		)
 		if err := exec.Command("bash", "-c", cmdStr).Run(); err != nil {
+			c.Logger().Errorf("Initialize script error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	}
+
+	// isuumo.estate_feature テーブルを構築
+	{
+		tx, err := db.Begin()
+		if err != nil {
+			c.Logger().Errorf("Initialize script error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		defer tx.Rollback()
+
+		rows, err := db.Queryx("SELECT id, features FROM estate")
+		if err != nil {
+			c.Logger().Errorf("Initialize script error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		for rows.Next() {
+			var estate struct {
+				ID       int    `db:"id"`
+				Features string `db:"features"`
+			}
+			if err := rows.Scan(&estate); err != nil {
+				c.Logger().Errorf("Initialize script error : %v", err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
+
+			for _, f := range strings.Split(estate.Features, ",") {
+				if _, err := tx.Exec("INSERT INTO estate_feature (estate_id, feature_id) VALUES (?, ?)", estate.ID, estateFeatureMap[f]); err != nil {
+					c.Logger().Errorf("Initialize script error : %v", err)
+					return c.NoContent(http.StatusInternalServerError)
+				}
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			c.Logger().Errorf("Initialize script error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+	}
+
+	// isuumo.chair_feature テーブルを構築
+	{
+		tx, err := db.Begin()
+		if err != nil {
+			c.Logger().Errorf("Initialize script error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		defer tx.Rollback()
+
+		rows, err := db.Queryx("SELECT id, features FROM chair")
+		if err != nil {
+			c.Logger().Errorf("Initialize script error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		for rows.Next() {
+			var chair struct {
+				ID       int    `db:"id"`
+				Features string `db:"features"`
+			}
+			if err := rows.Scan(&chair); err != nil {
+				c.Logger().Errorf("Initialize script error : %v", err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
+
+			for _, f := range strings.Split(chair.Features, ",") {
+				if _, err := tx.Exec("INSERT INTO chair_feature (chair_id, feature_id) VALUES (?, ?)", chair.ID, chairFeatureMap[f]); err != nil {
+					c.Logger().Errorf("Initialize script error : %v", err)
+					return c.NoContent(http.StatusInternalServerError)
+				}
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
 			c.Logger().Errorf("Initialize script error : %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
@@ -389,6 +481,14 @@ func postChair(c echo.Context) error {
 		if err != nil {
 			c.Logger().Errorf("failed to insert chair: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		// isuumo.chair_featureに追加
+		for _, f := range strings.Split(features, ",") {
+			if _, err := tx.Exec("INSERT INTO chair_feature (chair_id, feature_id) VALUES (?, ?)", id, chairFeatureMap[f]); err != nil {
+				c.Logger().Errorf("failed to insert chair: %v", err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
 		}
 	}
 	if err := tx.Commit(); err != nil {
@@ -723,6 +823,14 @@ func postEstate(c echo.Context) error {
 			c.Logger().Errorf("failed to insert estate: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
+
+		// isuumo.estate_featureに追加
+		for _, f := range strings.Split(features, ",") {
+			if _, err := tx.Exec("INSERT INTO estate_feature (estate_id, feature_id) VALUES (?, ?)", id, estateFeatureMap[f]); err != nil {
+				c.Logger().Errorf("failed to insert estate: %v", err)
+				return c.NoContent(http.StatusInternalServerError)
+			}
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		c.Logger().Errorf("failed to commit tx: %v", err)
@@ -734,6 +842,9 @@ func postEstate(c echo.Context) error {
 func searchEstates(c echo.Context) error {
 	conditions := make([]string, 0)
 	params := make([]interface{}, 0)
+
+	searchQuery := "SELECT * FROM estate WHERE "
+	countQuery := "SELECT COUNT(*) FROM estate WHERE "
 
 	if c.QueryParam("doorHeightRangeId") != "" {
 		doorHeight, err := getRange(estateSearchCondition.DoorHeight, c.QueryParam("doorHeightRangeId"))
@@ -787,10 +898,19 @@ func searchEstates(c echo.Context) error {
 	}
 
 	if c.QueryParam("features") != "" {
+		searchQuery = "SELECT * FROM estate INNER JOIN (SELECT estate_id FROM estate_feature WHERE feature_id IN (:FEATURES) GROUP BY estate_id HAVING COUNT(*) = :FEATURES_NUM ) TMP ON estate.id = TMP.estate_id WHERE "
+		countQuery = "SELECT COUNT(*) FROM estate INNER JOIN (SELECT estate_id FROM estate_feature WHERE feature_id IN (:FEATURES) GROUP BY estate_id HAVING COUNT(*) = :FEATURES_NUM ) TMP ON estate.id = TMP.estate_id WHERE "
+
+		var ids []string
 		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			conditions = append(conditions, "features like concat('%', ?, '%')")
-			params = append(params, f)
+			ids = append(ids, strconv.Itoa(estateFeatureMap[f]))
 		}
+
+		searchQuery = strings.ReplaceAll(searchQuery, ":FEATURES", strings.Join(ids, ","))
+		searchQuery = strings.ReplaceAll(searchQuery, ":FEATURES_NUM", strconv.Itoa(len(ids)))
+
+		countQuery = strings.ReplaceAll(countQuery, ":FEATURES", strings.Join(ids, ","))
+		countQuery = strings.ReplaceAll(countQuery, ":FEATURES_NUM", strconv.Itoa(len(ids)))
 	}
 
 	if len(conditions) == 0 {
@@ -810,8 +930,6 @@ func searchEstates(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	searchQuery := "SELECT * FROM estate WHERE "
-	countQuery := "SELECT COUNT(*) FROM estate WHERE "
 	searchCondition := strings.Join(conditions, " AND ")
 	limitOffset := " ORDER BY popularity DESC, id ASC LIMIT ? OFFSET ?"
 
