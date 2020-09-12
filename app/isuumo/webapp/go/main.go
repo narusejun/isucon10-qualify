@@ -34,7 +34,7 @@ var estateSearchCondition EstateSearchCondition
 var lowPricedChair *ChairListResponse
 var lowPricedChairMutex sync.RWMutex
 
-var cachedEstates = map[int]Estate{}
+var cachedEstates = []Estate{}
 var cachedEstatesMutex sync.RWMutex
 
 // chairのfeature -> feature idへのマップ
@@ -357,6 +357,13 @@ func initialize(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
+
+	cachedEstatesMutex.Lock()
+	if err := db.Select(&cachedEstates, "SELECT * FROM estate"); err != nil {
+		c.Logger().Errorf("READ ESTATE ERR", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	cachedEstatesMutex.Unlock()
 
 	// isuumo.estate_feature テーブルを構築
 	// {
@@ -812,6 +819,8 @@ func postEstate(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	cachedEstatesMutex.Lock()
+
 	tx, err := db.Begin()
 	if err != nil {
 		c.Logger().Errorf("failed to begin tx: %v", err)
@@ -842,6 +851,22 @@ func postEstate(c echo.Context) error {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
+		es := Estate{
+			int64(id),
+			thumbnail,
+			name,
+			description,
+			latitude,
+			longitude,
+			address,
+			int64(rent),
+			int64(doorHeight),
+			int64(doorWidth),
+			features,
+			int64(popularity),
+		}
+		cachedEstates = append(cachedEstates, es)
+
 		// isuumo.estate_featureに追加
 		for _, f := range strings.Split(features, ",") {
 			if len(f) == 0 {
@@ -858,6 +883,8 @@ func postEstate(c echo.Context) error {
 		c.Logger().Errorf("failed to commit tx: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
+	cachedEstatesMutex.Unlock()
+
 	return c.NoContent(http.StatusCreated)
 }
 
@@ -1060,20 +1087,6 @@ func searchEstateNazotte(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	b := coordinates.getBoundingBox()
-	estatesInBoundingBox := getEmptyEstateSlice()
-	defer releaseEstateSlice(estatesInBoundingBox)
-
-	query := `SELECT id, latitude, longitude FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ?`
-	err = db.Select(&estatesInBoundingBox, query, b.BottomRightCorner.Latitude, b.TopLeftCorner.Latitude, b.BottomRightCorner.Longitude, b.TopLeftCorner.Longitude)
-	if err == sql.ErrNoRows {
-		c.Echo().Logger.Infof("select * from estate where latitude ...", err)
-		return JSON(c, http.StatusOK, EstateSearchResponse{Count: 0, Estates: constEmptyEstates})
-	} else if err != nil {
-		c.Echo().Logger.Errorf("database execution error : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
 	polyPoints := getEmptyGeoPointSlice()
 	defer releaseGeoPointSlice(polyPoints)
 
@@ -1082,58 +1095,19 @@ func searchEstateNazotte(c echo.Context) error {
 	}
 	poly := geo.NewPolygon(polyPoints)
 
-	estatesInPolygonIDs := getEmptyIntSlice()
-	defer releaseIntSlice(estatesInPolygonIDs)
-
-	for _, estate := range estatesInBoundingBox {
-		if poly.Contains(geo.NewPoint(estate.Latitude, estate.Longitude)) {
-			estatesInPolygonIDs = append(estatesInPolygonIDs, int(estate.ID))
-		}
-	}
-
 	estatesInPolygon := getEmptyEstateSlice()
 	defer releaseEstateSlice(estatesInPolygon)
 
-	if len(estatesInPolygonIDs) == 0 {
-		return JSON(c, http.StatusOK, EstateSearchResponse{Estates: estatesInPolygon, Count: 0})
-	}
-
-	missingIDs := getEmptyIntSlice()
-	defer releaseIntSlice(missingIDs)
-
 	cachedEstatesMutex.RLock()
-	for _, id := range estatesInPolygonIDs {
-		if data, ok := cachedEstates[id]; ok {
-			estatesInPolygon = append(estatesInPolygon, data)
-		} else {
-			missingIDs = append(missingIDs, id)
+	for _, estate := range cachedEstates {
+		if poly.Contains(geo.NewPoint(estate.Latitude, estate.Longitude)) {
+			estatesInPolygon = append(estatesInPolygon, estate)
 		}
 	}
 	cachedEstatesMutex.RUnlock()
 
-	if len(missingIDs) > 0 {
-		missingEstates := getEmptyEstateSlice()
-		defer releaseEstateSlice(missingEstates)
-
-		query, args, err := sqlx.In("SELECT * FROM estate WHERE id IN (?)", missingIDs)
-		if err != nil {
-			c.Logger().Errorf("sqlx.In FAIL!! : %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-
-		err = db.Select(&missingEstates, db.Rebind(query), args...)
-		if err != nil {
-			c.Logger().Errorf("searchChairs DB execution error : %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-
-		estatesInPolygon = append(estatesInPolygon, missingEstates...)
-
-		cachedEstatesMutex.Lock()
-		for _, estate := range missingEstates {
-			cachedEstates[int(estate.ID)] = estate
-		}
-		cachedEstatesMutex.Unlock()
+	if len(estatesInPolygon) == 0 {
+		return JSON(c, http.StatusOK, EstateSearchResponse{Estates: estatesInPolygon, Count: 0})
 	}
 
 	sort.Slice(estatesInPolygon, func(i, j int) bool {
