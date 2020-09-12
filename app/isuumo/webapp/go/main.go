@@ -308,6 +308,8 @@ func initialize(c echo.Context) error {
 		filepath.Join(sqlDir, "0_Schema.sql"),
 		filepath.Join(sqlDir, "1_DummyEstateData.sql"),
 		filepath.Join(sqlDir, "2_DummyChairData.sql"),
+		filepath.Join(sqlDir, "3_estate_feature.sql"),
+		filepath.Join(sqlDir, "4_chair_feature.sql"),
 	}
 
 	for _, p := range paths {
@@ -327,48 +329,48 @@ func initialize(c echo.Context) error {
 	}
 
 	// isuumo.estate_feature テーブルを構築
-	{
-		var arr []struct {
-			ID       int    `db:"id"`
-			Features string `db:"features"`
-		}
-		err := db.Select(&arr, "SELECT id, features FROM estate")
-		if err != nil {
-			c.Logger().Errorf("Initialize script error : %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-
-		for _, estate := range arr {
-			for _, f := range strings.Split(estate.Features, ",") {
-				if _, err := db.Exec("INSERT INTO estate_feature (estate_id, feature_id) VALUES (?, ?)", estate.ID, estateFeatureMap[f]); err != nil {
-					c.Logger().Errorf("Initialize script error : %v", err)
-					return c.NoContent(http.StatusInternalServerError)
-				}
-			}
-		}
-	}
+	// {
+	// 	var arr []struct {
+	// 		ID       int    `db:"id"`
+	// 		Features string `db:"features"`
+	// 	}
+	// 	err := db.Select(&arr, "SELECT id, features FROM estate")
+	// 	if err != nil {
+	// 		c.Logger().Errorf("Initialize script error : %v", err)
+	// 		return c.NoContent(http.StatusInternalServerError)
+	// 	}
+	//
+	// 	for _, estate := range arr {
+	// 		for _, f := range strings.Split(estate.Features, ",") {
+	// 			if _, err := db.Exec("INSERT INTO estate_feature (estate_id, feature_id) VALUES (?, ?)", estate.ID, estateFeatureMap[f]); err != nil {
+	// 				c.Logger().Errorf("Initialize script error : %v", err)
+	// 				return c.NoContent(http.StatusInternalServerError)
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	// isuumo.chair_feature テーブルを構築
-	{
-		var arr []struct {
-			ID       int    `db:"id"`
-			Features string `db:"features"`
-		}
-		err := db.Select(&arr, "SELECT id, features FROM chair")
-		if err != nil {
-			c.Logger().Errorf("Initialize script error : %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-
-		for _, chair := range arr {
-			for _, f := range strings.Split(chair.Features, ",") {
-				if _, err := db.Exec("INSERT INTO chair_feature (chair_id, feature_id) VALUES (?, ?)", chair.ID, chairFeatureMap[f]); err != nil {
-					c.Logger().Errorf("Initialize script error : %v", err)
-					return c.NoContent(http.StatusInternalServerError)
-				}
-			}
-		}
-	}
+	// {
+	// 	var arr []struct {
+	// 		ID       int    `db:"id"`
+	// 		Features string `db:"features"`
+	// 	}
+	// 	err := db.Select(&arr, "SELECT id, features FROM chair")
+	// 	if err != nil {
+	// 		c.Logger().Errorf("Initialize script error : %v", err)
+	// 		return c.NoContent(http.StatusInternalServerError)
+	// 	}
+	//
+	// 	for _, chair := range arr {
+	// 		for _, f := range strings.Split(chair.Features, ",") {
+	// 			if _, err := db.Exec("INSERT INTO chair_feature (chair_id, feature_id) VALUES (?, ?)", chair.ID, chairFeatureMap[f]); err != nil {
+	// 				c.Logger().Errorf("Initialize script error : %v", err)
+	// 				return c.NoContent(http.StatusInternalServerError)
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	return JSON(c, http.StatusOK, InitializeResponse{
 		Language: "go",
@@ -473,7 +475,7 @@ func postChair(c echo.Context) error {
 	if currentPrice <= currentButtom {
 		lowPricedChairMutex.Lock()
 		lowPricedChair = nil
-		lowPricedChairMutex.RLock()
+		lowPricedChairMutex.Unlock()
 	}
 
 	return c.NoContent(http.StatusCreated)
