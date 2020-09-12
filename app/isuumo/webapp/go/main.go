@@ -308,8 +308,8 @@ func initialize(c echo.Context) error {
 		filepath.Join(sqlDir, "0_Schema.sql"),
 		filepath.Join(sqlDir, "1_DummyEstateData.sql"),
 		filepath.Join(sqlDir, "2_DummyChairData.sql"),
-		filepath.Join(sqlDir, "3_estate_feature.sql"),
-		filepath.Join(sqlDir, "4_chair_feature.sql"),
+		// filepath.Join(sqlDir, "3_estate_feature.sql"),
+		// filepath.Join(sqlDir, "4_chair_feature.sql"),
 	}
 
 	for _, p := range paths {
