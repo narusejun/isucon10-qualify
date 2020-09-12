@@ -489,19 +489,19 @@ func postChair(c echo.Context) error {
 			return c.NoContent(http.StatusBadRequest)
 		}
 		argPlaces[idx] = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-		args[idx+0] = id
-		args[idx+1] = name
-		args[idx+2] = description
-		args[idx+3] = thumbnail
-		args[idx+4] = price
-		args[idx+5] = height
-		args[idx+6] = width
-		args[idx+7] = depth
-		args[idx+8] = color
-		args[idx+9] = features
-		args[idx+10] = kind
-		args[idx+11] = popularity
-		args[idx+12] = stock
+		args[idx*13+0] = id
+		args[idx*13+1] = name
+		args[idx*13+2] = description
+		args[idx*13+3] = thumbnail
+		args[idx*13+4] = price
+		args[idx*13+5] = height
+		args[idx*13+6] = width
+		args[idx*13+7] = depth
+		args[idx*13+8] = color
+		args[idx*13+9] = features
+		args[idx*13+10] = kind
+		args[idx*13+11] = popularity
+		args[idx*13+12] = stock
 
 		// chairs[idx] = &Chair{
 		// 	ID:          int64(id),
