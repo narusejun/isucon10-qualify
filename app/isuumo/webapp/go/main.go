@@ -329,48 +329,56 @@ func initialize(c echo.Context) error {
 	}
 
 	// isuumo.estate_feature テーブルを構築
-	// {
-	// 	var arr []struct {
-	// 		ID       int    `db:"id"`
-	// 		Features string `db:"features"`
-	// 	}
-	// 	err := db.Select(&arr, "SELECT id, features FROM estate")
-	// 	if err != nil {
-	// 		c.Logger().Errorf("Initialize script error : %v", err)
-	// 		return c.NoContent(http.StatusInternalServerError)
-	// 	}
-	//
-	// 	for _, estate := range arr {
-	// 		for _, f := range strings.Split(estate.Features, ",") {
-	// 			if _, err := db.Exec("INSERT INTO estate_feature (estate_id, feature_id) VALUES (?, ?)", estate.ID, estateFeatureMap[f]); err != nil {
-	// 				c.Logger().Errorf("Initialize script error : %v", err)
-	// 				return c.NoContent(http.StatusInternalServerError)
-	// 			}
-	// 		}
-	// 	}
-	// }
+	{
+		var arr []struct {
+			ID       int    `db:"id"`
+			Features string `db:"features"`
+		}
+		err := db.Select(&arr, "SELECT id, features FROM estate")
+		if err != nil {
+			c.Logger().Errorf("Initialize script error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		for _, estate := range arr {
+			for _, f := range strings.Split(estate.Features, ",") {
+				if len(f) == 0 {
+					continue
+				}
+
+				if _, err := db.Exec("INSERT INTO estate_feature (estate_id, feature_id) VALUES (?, ?)", estate.ID, estateFeatureMap[f]); err != nil {
+					c.Logger().Errorf("Initialize script error : %v", err)
+					return c.NoContent(http.StatusInternalServerError)
+				}
+			}
+		}
+	}
 
 	// isuumo.chair_feature テーブルを構築
-	// {
-	// 	var arr []struct {
-	// 		ID       int    `db:"id"`
-	// 		Features string `db:"features"`
-	// 	}
-	// 	err := db.Select(&arr, "SELECT id, features FROM chair")
-	// 	if err != nil {
-	// 		c.Logger().Errorf("Initialize script error : %v", err)
-	// 		return c.NoContent(http.StatusInternalServerError)
-	// 	}
-	//
-	// 	for _, chair := range arr {
-	// 		for _, f := range strings.Split(chair.Features, ",") {
-	// 			if _, err := db.Exec("INSERT INTO chair_feature (chair_id, feature_id) VALUES (?, ?)", chair.ID, chairFeatureMap[f]); err != nil {
-	// 				c.Logger().Errorf("Initialize script error : %v", err)
-	// 				return c.NoContent(http.StatusInternalServerError)
-	// 			}
-	// 		}
-	// 	}
-	// }
+	{
+		var arr []struct {
+			ID       int    `db:"id"`
+			Features string `db:"features"`
+		}
+		err := db.Select(&arr, "SELECT id, features FROM chair")
+		if err != nil {
+			c.Logger().Errorf("Initialize script error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		for _, chair := range arr {
+			for _, f := range strings.Split(chair.Features, ",") {
+				if len(f) == 0 {
+					continue
+				}
+
+				if _, err := db.Exec("INSERT INTO chair_feature (chair_id, feature_id) VALUES (?, ?)", chair.ID, chairFeatureMap[f]); err != nil {
+					c.Logger().Errorf("Initialize script error : %v", err)
+					return c.NoContent(http.StatusInternalServerError)
+				}
+			}
+		}
+	}
 
 	return JSON(c, http.StatusOK, InitializeResponse{
 		Language: "go",
@@ -455,6 +463,10 @@ func postChair(c echo.Context) error {
 
 		// isuumo.chair_featureに追加
 		// for _, f := range strings.Split(features, ",") {
+		// 	if len(f) == 0 {
+		// 		continue
+		// 	}
+		//
 		// 	if _, err := tx.Exec("INSERT INTO chair_feature (chair_id, feature_id) VALUES (?, ?)", id, chairFeatureMap[f]); err != nil {
 		// 		c.Logger().Errorf("failed to insert chair: %v", err)
 		// 		return c.NoContent(http.StatusInternalServerError)
@@ -802,6 +814,10 @@ func postEstate(c echo.Context) error {
 
 		// isuumo.estate_featureに追加
 		for _, f := range strings.Split(features, ",") {
+			if len(f) == 0 {
+				continue
+			}
+
 			if _, err := tx.Exec("INSERT INTO estate_feature (estate_id, feature_id) VALUES (?, ?)", id, estateFeatureMap[f]); err != nil {
 				c.Logger().Errorf("failed to insert estate: %v", err)
 				return c.NoContent(http.StatusInternalServerError)
@@ -879,6 +895,10 @@ func searchEstates(c echo.Context) error {
 
 		var ids []string
 		for _, f := range strings.Split(c.QueryParam("features"), ",") {
+			if len(f) == 0 {
+				continue
+			}
+
 			ids = append(ids, strconv.Itoa(estateFeatureMap[f]))
 		}
 
