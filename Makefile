@@ -51,7 +51,7 @@ start:
 .PHONY: pprof
 pprof:
 	pprof -png -output /tmp/pprof.png $(BIN_PATH) $(APP_LOCAL_URL)/debug/pprof/profile
-	slackcat /tmp/pprof.png
+	# slackcat /tmp/pprof.png
 	pprof -http=0.0.0.0:9090 $(BIN_PATH) `ls -lt $(HOME)/pprof/* | head -n 1 | gawk '{print $$9}'`
 
 .PHONY: kataru
