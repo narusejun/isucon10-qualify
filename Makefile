@@ -11,6 +11,8 @@ NGX_LOG:=/var/log/nginx/access.log
 MYSQL_SERVICE=mariadb
 MYSQL_LOG:=/var/log/mariadb/mariadb.log
 
+HOSTNAME:=$(shell hostname)
+
 all: build
 
 .PHONY: clean
@@ -19,10 +21,10 @@ clean:
 	rm -rf ${BIN_NAME}
 
 .PHONY: deploy
-deploy: build config-files start
+deploy: before build config-files start
 
 .PHONY: deploy-nolog
-deploy-nolog: build-nolog config-files start
+deploy-nolog: before build-nolog config-files start
 
 .PHONY: build
 build:
@@ -40,16 +42,16 @@ build-nolog:
 
 .PHONY: config-files
 config-files:
-	sudo rsync -v -r $$HOSTNAME/ /
+	sudo rsync -v -r $(HOSTNAME)/ /
 
 .PHONY: start
 start:
-	sh $$HOSTNAME/deploy.sh
+	sh $(HOSTNAME)/deploy.sh
 
 .PHONY: pprof
 pprof:
 	pprof -png -output /tmp/pprof.png $(BIN_PATH) $(APP_LOCAL_URL)/debug/pprof/profile
-	slackcat /tmp/pprof.png
+	# slackcat /tmp/pprof.png
 	pprof -http=0.0.0.0:9090 $(BIN_PATH) `ls -lt $(HOME)/pprof/* | head -n 1 | gawk '{print $$9}'`
 
 .PHONY: kataru
@@ -62,5 +64,3 @@ before:
 	mkdir -p ~/logs/$(when)
 	sudo mv -f $(NGX_LOG) ~/logs/$(when)/
 	sudo mv -f $(MYSQL_LOG) ~/logs/$(when)/
-	sudo systemctl restart $(NGX_SERVICE)
-	sudo systemctl restart $(MYSQL_SERVICE)
