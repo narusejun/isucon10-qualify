@@ -5,7 +5,7 @@ import (
 	"github.com/labstack/echo"
 )
 
-var json = jsoniter.Config{
+var myjson = jsoniter.Config{
 	EscapeHTML:                    false,
 	ObjectFieldMustBeSimpleString: true,
 }.Froze()
@@ -14,5 +14,5 @@ var json = jsoniter.Config{
 func JSON(c echo.Context, code int, i interface{}) error {
 	c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSONCharsetUTF8)
 	c.Response().WriteHeader(code)
-	return json.NewEncoder(c.Response()).Encode(i)
+	return myjson.NewEncoder(c.Response()).Encode(i)
 }
