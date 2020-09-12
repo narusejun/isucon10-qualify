@@ -886,9 +886,11 @@ func searchEstateNazotte(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	polyPoints := make([]*geo.Point, len(coordinates.Coordinates))
-	for i, co := range coordinates.Coordinates {
-		polyPoints[i] = geo.NewPoint(co.Latitude, co.Longitude)
+	polyPoints := getEmptyGeoPointSlice()
+	defer releaseGeoPointSlice(polyPoints)
+
+	for _, co := range coordinates.Coordinates {
+		polyPoints = append(polyPoints, geo.NewPoint(co.Latitude, co.Longitude))
 	}
 	poly := geo.NewPolygon(polyPoints)
 
