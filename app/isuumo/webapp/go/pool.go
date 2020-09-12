@@ -1,8 +1,9 @@
 package main
 
 import (
-	geo "github.com/kellydunn/golang-geo"
 	"sync"
+
+	geo "github.com/kellydunn/golang-geo"
 )
 
 // 変更禁止
@@ -46,4 +47,17 @@ func getEmptyGeoPointSlice() []*geo.Point {
 
 func releaseGeoPointSlice(s []*geo.Point) {
 	geoPointsPool.Put(s[:0])
+}
+
+// []int64のプール
+var int64Pool = sync.Pool{New: func() interface{} {
+	return []int64{}
+}}
+
+func getEmptyInt64Slice() []int64 {
+	return int64Pool.Get().([]int64)
+}
+
+func releaseInt64Slice(s []int64) {
+	int64Pool.Put(s[:0])
 }

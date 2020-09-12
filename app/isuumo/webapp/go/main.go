@@ -920,7 +920,7 @@ func searchEstateNazotte(c echo.Context) error {
 	estatesInBoundingBox := getEmptyEstateSlice()
 	defer releaseEstateSlice(estatesInBoundingBox)
 
-	query := `SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC`
+	query := `SELECT id, latitude, longitude FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ?`
 	err = db.Select(&estatesInBoundingBox, query, b.BottomRightCorner.Latitude, b.TopLeftCorner.Latitude, b.BottomRightCorner.Longitude, b.TopLeftCorner.Longitude)
 	if err == sql.ErrNoRows {
 		c.Echo().Logger.Infof("select * from estate where latitude ...", err)
@@ -938,13 +938,25 @@ func searchEstateNazotte(c echo.Context) error {
 	}
 	poly := geo.NewPolygon(polyPoints)
 
-	estatesInPolygon := getEmptyEstateSlice()
-	defer releaseEstateSlice(estatesInPolygon)
+	estatesInPolygonIDs := getEmptyInt64Slice()
+	defer releaseInt64Slice(estatesInPolygonIDs)
 
 	for _, estate := range estatesInBoundingBox {
 		if poly.Contains(geo.NewPoint(estate.Latitude, estate.Longitude)) {
-			estatesInPolygon = append(estatesInPolygon, estate)
+			estatesInPolygonIDs = append(estatesInPolygonIDs, estate.ID)
 		}
+	}
+
+	estatesInPolygon := getEmptyEstateSlice()
+	defer releaseEstateSlice(estatesInPolygon)
+
+	err = db.Select(&estatesInPolygon, "SELECT * FROM estate WHERE id IN (?) ORDER BY popularity DESC, id ASC", estatesInPolygonIDs)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return JSON(c, http.StatusOK, ChairSearchResponse{Count: 0, Chairs: []Chair{}})
+		}
+		c.Logger().Errorf("searchChairs DB execution error : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	var re EstateSearchResponse
