@@ -467,13 +467,16 @@ func postChair(c echo.Context) error {
 
 	var currentPrice int64
 
-	tx, err := db.Begin()
-	if err != nil {
-		c.Logger().Errorf("failed to begin tx: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
-	for _, row := range records {
+	// tx, err := db.Begin()
+	// if err != nil {
+	// 	c.Logger().Errorf("failed to begin tx: %v", err)
+	// 	return c.NoContent(http.StatusInternalServerError)
+	// }
+	// defer tx.Rollback()
+	argPlaces := make([]string, len(records))
+
+	args := make([]interface{}, len(records)*17)
+	for idx, row := range records {
 		rm := RecordMapper{Record: row}
 		id := rm.NextInt()
 		name := rm.NextString()
@@ -492,6 +495,20 @@ func postChair(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
+		argPlaces[idx] = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+		args[idx*17+0] = id
+		args[idx*17+1] = name
+		args[idx*17+2] = description
+		args[idx*17+3] = thumbnail
+		args[idx*17+4] = price
+		args[idx*17+5] = height
+		args[idx*17+6] = width
+		args[idx*17+7] = depth
+		args[idx*17+8] = color
+		args[idx*17+9] = features
+		args[idx*17+10] = kind
+		args[idx*17+11] = popularity
+		args[idx*17+12] = stock
 
 		// width_level
 		widthLevel := -1
@@ -505,6 +522,7 @@ func postChair(c echo.Context) error {
 		case width >= 150:
 			widthLevel = 3
 		}
+		args[idx*17+14] = widthLevel
 
 		// height_level
 		heightLevel := -1
@@ -518,6 +536,7 @@ func postChair(c echo.Context) error {
 		case height >= 150:
 			heightLevel = 3
 		}
+		args[idx*17+15] = heightLevel
 
 		// depth_level
 		depthLevel := -1
@@ -531,6 +550,7 @@ func postChair(c echo.Context) error {
 		case depth >= 150:
 			depthLevel = 3
 		}
+		args[idx*17+16] = depthLevel
 
 		// rent_level
 		priceLevel := -1
@@ -548,12 +568,23 @@ func postChair(c echo.Context) error {
 		case price >= 15000:
 			priceLevel = 5
 		}
+		args[idx*17+17] = priceLevel
 
-		_, err := tx.Exec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, width_level, height_level, depth_level, price_level) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, widthLevel, heightLevel, depthLevel, priceLevel)
-		if err != nil {
-			c.Logger().Errorf("failed to insert chair: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
+		// chairs[idx] = &Chair{
+		// 	ID:          int64(id),
+		// 	Name:        name,
+		// 	Description: description,
+		// 	Thumbnail:   thumbnail,
+		// 	Price:       int64(price),
+		// 	Height:      int64(height),
+		// 	Width:       int64(width),
+		// 	Depth:       int64(depth),
+		// 	Color:       color,
+		// 	Features:    features,
+		// 	Kind:        kind,
+		// 	Popularity:  int64(popularity),
+		// 	Stock:       int64(stock),
+		// }
 
 		// isuumo.chair_featureに追加
 		// for _, f := range strings.Split(features, ",") {
@@ -569,8 +600,9 @@ func postChair(c echo.Context) error {
 
 		currentPrice = int64(price)
 	}
-	if err := tx.Commit(); err != nil {
-		c.Logger().Errorf("failed to commit tx: %v", err)
+	_, err = db.Exec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, width_leve, height_level, depth_level, price_level) VALUES "+strings.Join(argPlaces, ","), args...)
+	if err != nil {
+		c.Logger().Errorf("failed to insert chair: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
