@@ -880,11 +880,11 @@ func searchEstates(c echo.Context) error {
 			ids = append(ids, strconv.Itoa(estateFeatureMap[f]))
 		}
 
-		searchQuery = strings.ReplaceAll(searchQuery, ":FEATURES", strings.Join(ids, ","))
 		searchQuery = strings.ReplaceAll(searchQuery, ":FEATURES_NUM", strconv.Itoa(len(ids)))
+		searchQuery = strings.ReplaceAll(searchQuery, ":FEATURES", strings.Join(ids, ","))
 
-		countQuery = strings.ReplaceAll(countQuery, ":FEATURES", strings.Join(ids, ","))
 		countQuery = strings.ReplaceAll(countQuery, ":FEATURES_NUM", strconv.Itoa(len(ids)))
+		countQuery = strings.ReplaceAll(countQuery, ":FEATURES", strings.Join(ids, ","))
 	}
 
 	if len(conditions) == 0 {
