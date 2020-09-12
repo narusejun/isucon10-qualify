@@ -39,14 +39,16 @@ CREATE TABLE isuumo.chair
 
 CREATE TABLE isuumo.chair_feature
 (
-    chair_id         INTEGER         NOT NULL PRIMARY KEY,
-    feature_id       INTEGER         NOT NULL PRIMARY KEY
+    chair_id         INTEGER         NOT NULL,
+    feature_id       INTEGER         NOT NULL,
+    PRIMARY KEY (chair_id, feature_id)
 );
 
 CREATE TABLE isuumo.estate_feature
 (
-    estate_id        INTEGER         NOT NULL PRIMARY KEY,
-    feature_id       INTEGER         NOT NULL PRIMARY KEY
+    estate_id        INTEGER         NOT NULL,
+    feature_id       INTEGER         NOT NULL,
+    PRIMARY KEY (estate_id, feature_id)
 );
 
 CREATE INDEX estate1 ON isuumo.estate (door_width, door_height, popularity, id);
