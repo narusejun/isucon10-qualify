@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -302,9 +303,29 @@ func main() {
 	db.SetMaxOpenConns(10)
 	defer db.Close()
 
-	// Start server
-	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "1323"))
-	e.Logger.Fatal(e.Start(serverPort))
+	if getEnv("ECHO_UNIX_DOMAIN_SOCKET", "0") == "1" {
+		// ここからソケット接続設定 ---
+		socket_file := "/var/run/app.sock"
+		os.Remove(socket_file)
+
+		l, err := net.Listen("unix", socket_file)
+		if err != nil {
+			e.Logger.Fatal(err)
+		}
+
+		// go runユーザとnginxのユーザ（グループ）を同じにすれば777じゃなくてok
+		err = os.Chmod(socket_file, 0777)
+		if err != nil {
+			e.Logger.Fatal(err)
+		}
+
+		e.Listener = l
+		e.Logger.Fatal(e.Start(""))
+	} else {
+		// Start server
+		serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "1323"))
+		e.Logger.Fatal(e.Start(serverPort))
+	}
 }
 
 func initialize(c echo.Context) error {
