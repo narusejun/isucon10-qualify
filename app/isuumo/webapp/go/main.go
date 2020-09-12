@@ -513,7 +513,9 @@ func searchChairs(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	chairs := []Chair{}
+	chairs := getEmptyChairSlice()
+	defer releaseChairSlice(chairs)
+
 	params = append(params, perPage, page*perPage)
 	err = db.Select(&chairs, searchQuery+searchCondition+limitOffset, params...)
 	if err != nil {
@@ -586,13 +588,15 @@ func getChairSearchCondition(c echo.Context) error {
 }
 
 func getLowPricedChair(c echo.Context) error {
-	var chairs []Chair
+	chairs := getEmptyChairSlice()
+	defer releaseChairSlice(chairs)
+
 	query := `SELECT * FROM chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT ?`
 	err := db.Select(&chairs, query, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Logger().Error("getLowPricedChair not found")
-			return c.JSON(http.StatusOK, ChairListResponse{[]Chair{}})
+			return c.JSON(http.StatusOK, ChairListResponse{constEmptyChairs})
 		}
 		c.Logger().Errorf("getLowPricedChair DB execution error : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -781,12 +785,14 @@ func searchEstates(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	estates := []Estate{}
+	estates := getEmptyEstateSlice()
+	defer releaseEstateSlice(estates)
+
 	params = append(params, perPage, page*perPage)
 	err = db.Select(&estates, searchQuery+searchCondition+limitOffset, params...)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return c.JSON(http.StatusOK, EstateSearchResponse{Count: 0, Estates: []Estate{}})
+			return c.JSON(http.StatusOK, EstateSearchResponse{Count: 0, Estates: constEmptyEstates})
 		}
 		c.Logger().Errorf("searchEstates DB execution error : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -798,13 +804,15 @@ func searchEstates(c echo.Context) error {
 }
 
 func getLowPricedEstate(c echo.Context) error {
-	estates := make([]Estate, 0, Limit)
+	estates := getEmptyEstateSlice()
+	defer releaseEstateSlice(estates)
+
 	query := `SELECT * FROM estate ORDER BY rent ASC, id ASC LIMIT ?`
 	err := db.Select(&estates, query, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Logger().Error("getLowPricedEstate not found")
-			return c.JSON(http.StatusOK, EstateListResponse{[]Estate{}})
+			return c.JSON(http.StatusOK, EstateListResponse{constEmptyEstates})
 		}
 		c.Logger().Errorf("getLowPricedEstate DB execution error : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -832,7 +840,9 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	var estates []Estate
+	estates := getEmptyEstateSlice()
+	defer releaseEstateSlice(estates)
+
 	w := chair.Width
 	h := chair.Height
 	d := chair.Depth
@@ -840,7 +850,7 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 	err = db.Select(&estates, query, w, h, w, d, h, w, h, d, d, w, d, h, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return c.JSON(http.StatusOK, EstateListResponse{[]Estate{}})
+			return c.JSON(http.StatusOK, EstateListResponse{constEmptyEstates})
 		}
 		c.Logger().Errorf("Database execution error : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -862,18 +872,22 @@ func searchEstateNazotte(c echo.Context) error {
 	}
 
 	b := coordinates.getBoundingBox()
-	estatesInBoundingBox := []Estate{}
+	estatesInBoundingBox := getEmptyEstateSlice()
+	defer releaseEstateSlice(estatesInBoundingBox)
+
 	query := `SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC`
 	err = db.Select(&estatesInBoundingBox, query, b.BottomRightCorner.Latitude, b.TopLeftCorner.Latitude, b.BottomRightCorner.Longitude, b.TopLeftCorner.Longitude)
 	if err == sql.ErrNoRows {
 		c.Echo().Logger.Infof("select * from estate where latitude ...", err)
-		return c.JSON(http.StatusOK, EstateSearchResponse{Count: 0, Estates: []Estate{}})
+		return c.JSON(http.StatusOK, EstateSearchResponse{Count: 0, Estates: constEmptyEstates})
 	} else if err != nil {
 		c.Echo().Logger.Errorf("database execution error : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	estatesInPolygon := []Estate{}
+	estatesInPolygon := getEmptyEstateSlice()
+	defer releaseEstateSlice(estatesInPolygon)
+
 	for _, estate := range estatesInBoundingBox {
 		validatedEstate := Estate{}
 
@@ -893,7 +907,6 @@ func searchEstateNazotte(c echo.Context) error {
 	}
 
 	var re EstateSearchResponse
-	re.Estates = []Estate{}
 	if len(estatesInPolygon) > NazotteLimit {
 		re.Estates = estatesInPolygon[:NazotteLimit]
 	} else {
