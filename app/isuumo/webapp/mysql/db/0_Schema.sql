@@ -18,7 +18,7 @@ CREATE TABLE isuumo.estate
     door_width  INTEGER             NOT NULL,
     features    VARCHAR(64)         NOT NULL,
     popularity  INTEGER             NOT NULL
-);
+) ENGINE = MEMORY;
 
 CREATE TABLE isuumo.chair
 (
@@ -35,7 +35,7 @@ CREATE TABLE isuumo.chair
     kind        VARCHAR(64)     NOT NULL,
     popularity  INTEGER         NOT NULL,
     stock       INTEGER         NOT NULL
-);
+) ENGINE = MEMORY;
 
 CREATE INDEX estate1 ON isuumo.estate (door_width, door_height, popularity, id);
 CREATE INDEX estate2 ON isuumo.estate (rent, id);
