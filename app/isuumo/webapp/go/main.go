@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,6 +33,9 @@ var estateSearchCondition EstateSearchCondition
 
 var lowPricedChair *ChairListResponse
 var lowPricedChairMutex sync.RWMutex
+
+var cachedEstates = map[int]Estate{}
+var cachedEstatesMutex sync.RWMutex
 
 // chairのfeature -> feature idへのマップ
 var chairFeatureMap = map[string]int{}
@@ -463,13 +467,15 @@ func postChair(c echo.Context) error {
 
 	var currentPrice int64
 
-	tx, err := db.Begin()
-	if err != nil {
-		c.Logger().Errorf("failed to begin tx: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
-	for _, row := range records {
+	// tx, err := db.Begin()
+	// if err != nil {
+	// 	c.Logger().Errorf("failed to begin tx: %v", err)
+	// 	return c.NoContent(http.StatusInternalServerError)
+	// }
+	// defer tx.Rollback()
+
+	chairs := make([]*Chair, len(records))
+	for idx, row := range records {
 		rm := RecordMapper{Record: row}
 		id := rm.NextInt()
 		name := rm.NextString()
@@ -488,6 +494,21 @@ func postChair(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
+		chairs[idx] = &Chair{
+			ID:          int64(id),
+			Name:        name,
+			Description: description,
+			Thumbnail:   thumbnail,
+			Price:       int64(price),
+			Height:      int64(height),
+			Width:       int64(width),
+			Depth:       int64(depth),
+			Color:       color,
+			Features:    features,
+			Kind:        kind,
+			Popularity:  int64(popularity),
+			Stock:       int64(stock),
+		}
 
 		// width_level
 		widthLevel := -1
@@ -501,6 +522,7 @@ func postChair(c echo.Context) error {
 		case width >= 150:
 			widthLevel = 3
 		}
+		chairs[idx].WidthLevel = widthLevel
 
 		// height_level
 		heightLevel := -1
@@ -514,6 +536,7 @@ func postChair(c echo.Context) error {
 		case height >= 150:
 			heightLevel = 3
 		}
+		chairs[idx].HeightLevel = heightLevel
 
 		// depth_level
 		depthLevel := -1
@@ -527,6 +550,7 @@ func postChair(c echo.Context) error {
 		case depth >= 150:
 			depthLevel = 3
 		}
+		chairs[idx].DepthLevel = depthLevel
 
 		// rent_level
 		priceLevel := -1
@@ -544,12 +568,7 @@ func postChair(c echo.Context) error {
 		case price >= 15000:
 			priceLevel = 5
 		}
-
-		_, err := tx.Exec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, width_level, height_level, depth_level, price_level) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, widthLevel, heightLevel, depthLevel, priceLevel)
-		if err != nil {
-			c.Logger().Errorf("failed to insert chair: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
+		chairs[idx].PriceLevel = priceLevel
 
 		// isuumo.chair_featureに追加
 		// for _, f := range strings.Split(features, ",") {
@@ -565,10 +584,15 @@ func postChair(c echo.Context) error {
 
 		currentPrice = int64(price)
 	}
-	if err := tx.Commit(); err != nil {
-		c.Logger().Errorf("failed to commit tx: %v", err)
+	_, err = db.NamedExec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, width_level, height_level, depth_level, price_level) VALUES(:id, :name, :description, :thumbnail, :price, :height, :width, :depth, :color, :features, :kind, :popularity, :stock, :width_level, :height_level, :depth_level, :price_level)", chairs)
+	if err != nil {
+		c.Logger().Errorf("failed to insert chair: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
+	// if err := tx.Commit(); err != nil {
+	// 	c.Logger().Errorf("failed to commit tx: %v", err)
+	// 	return c.NoContent(http.StatusInternalServerError)
+	// }
 
 	lowPricedChairMutex.RLock()
 	currentButtom := lowPricedChair.Chairs[len(lowPricedChair.Chairs)-1].Price
@@ -1149,17 +1173,50 @@ func searchEstateNazotte(c echo.Context) error {
 		return JSON(c, http.StatusOK, EstateSearchResponse{Estates: estatesInPolygon, Count: 0})
 	}
 
-	query, args, err := sqlx.In("SELECT * FROM estate WHERE id IN (?) ORDER BY popularity DESC, id ASC", estatesInPolygonIDs)
-	if err != nil {
-		c.Logger().Errorf("sqlx.In FAIL!! : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
+	missingIDs := getEmptyIntSlice()
+	defer releaseIntSlice(missingIDs)
+
+	cachedEstatesMutex.RLock()
+	for _, id := range estatesInPolygonIDs {
+		if data, ok := cachedEstates[id]; ok {
+			estatesInPolygon = append(estatesInPolygon, data)
+		} else {
+			missingIDs = append(missingIDs, id)
+		}
+	}
+	cachedEstatesMutex.RUnlock()
+
+	if len(missingIDs) > 0 {
+		missingEstates := getEmptyEstateSlice()
+		defer releaseEstateSlice(missingEstates)
+
+		query, args, err := sqlx.In("SELECT * FROM estate WHERE id IN (?)", missingIDs)
+		if err != nil {
+			c.Logger().Errorf("sqlx.In FAIL!! : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		err = db.Select(&missingEstates, db.Rebind(query), args...)
+		if err != nil {
+			c.Logger().Errorf("searchChairs DB execution error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		estatesInPolygon = append(estatesInPolygon, missingEstates...)
+
+		cachedEstatesMutex.Lock()
+		for _, estate := range missingEstates {
+			cachedEstates[int(estate.ID)] = estate
+		}
+		cachedEstatesMutex.Unlock()
 	}
 
-	err = db.Select(&estatesInPolygon, db.Rebind(query), args...)
-	if err != nil {
-		c.Logger().Errorf("searchChairs DB execution error : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
+	sort.Slice(estatesInPolygon, func(i, j int) bool {
+		if estatesInPolygon[i].Popularity == estatesInPolygon[j].Popularity {
+			return estatesInPolygon[i].ID < estatesInPolygon[j].ID
+		}
+		return estatesInPolygon[i].Popularity > estatesInPolygon[j].Popularity
+	})
 
 	var re EstateSearchResponse
 	if len(estatesInPolygon) > NazotteLimit {
