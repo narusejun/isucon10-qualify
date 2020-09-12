@@ -522,7 +522,7 @@ func postChair(c echo.Context) error {
 		case width >= 150:
 			widthLevel = 3
 		}
-		args[idx*17+14] = widthLevel
+		args[idx*17+13] = widthLevel
 
 		// height_level
 		heightLevel := -1
@@ -536,7 +536,7 @@ func postChair(c echo.Context) error {
 		case height >= 150:
 			heightLevel = 3
 		}
-		args[idx*17+15] = heightLevel
+		args[idx*17+14] = heightLevel
 
 		// depth_level
 		depthLevel := -1
@@ -550,7 +550,7 @@ func postChair(c echo.Context) error {
 		case depth >= 150:
 			depthLevel = 3
 		}
-		args[idx*17+16] = depthLevel
+		args[idx*17+15] = depthLevel
 
 		// rent_level
 		priceLevel := -1
@@ -568,7 +568,7 @@ func postChair(c echo.Context) error {
 		case price >= 15000:
 			priceLevel = 5
 		}
-		args[idx*17+17] = priceLevel
+		args[idx*17+16] = priceLevel
 
 		// chairs[idx] = &Chair{
 		// 	ID:          int64(id),
