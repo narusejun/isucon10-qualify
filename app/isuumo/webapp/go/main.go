@@ -466,8 +466,9 @@ func postChair(c echo.Context) error {
 	// 	return c.NoContent(http.StatusInternalServerError)
 	// }
 	// defer tx.Rollback()
+	argPlaces := make([]string, len(records))
 
-	chairs := make([]*Chair, len(records))
+	args := make([]interface{}, len(records)*13)
 	for idx, row := range records {
 		rm := RecordMapper{Record: row}
 		id := rm.NextInt()
@@ -487,21 +488,36 @@ func postChair(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		chairs[idx] = &Chair{
-			ID:          int64(id),
-			Name:        name,
-			Description: description,
-			Thumbnail:   thumbnail,
-			Price:       int64(price),
-			Height:      int64(height),
-			Width:       int64(width),
-			Depth:       int64(depth),
-			Color:       color,
-			Features:    features,
-			Kind:        kind,
-			Popularity:  int64(popularity),
-			Stock:       int64(stock),
-		}
+		argPlaces[idx] = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+		args[idx+0] = id
+		args[idx+1] = name
+		args[idx+2] = description
+		args[idx+3] = thumbnail
+		args[idx+4] = price
+		args[idx+5] = height
+		args[idx+6] = width
+		args[idx+7] = depth
+		args[idx+8] = color
+		args[idx+9] = features
+		args[idx+10] = kind
+		args[idx+11] = popularity
+		args[idx+12] = stock
+
+		// chairs[idx] = &Chair{
+		// 	ID:          int64(id),
+		// 	Name:        name,
+		// 	Description: description,
+		// 	Thumbnail:   thumbnail,
+		// 	Price:       int64(price),
+		// 	Height:      int64(height),
+		// 	Width:       int64(width),
+		// 	Depth:       int64(depth),
+		// 	Color:       color,
+		// 	Features:    features,
+		// 	Kind:        kind,
+		// 	Popularity:  int64(popularity),
+		// 	Stock:       int64(stock),
+		// }
 
 		// isuumo.chair_featureに追加
 		// for _, f := range strings.Split(features, ",") {
@@ -517,7 +533,7 @@ func postChair(c echo.Context) error {
 
 		currentPrice = int64(price)
 	}
-	_, err = db.NamedExec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES(:id, :name, :description, :thumbnail, :price, :height, :width, :depth, :color, :features, :kind, :popularity, :stock)", chairs)
+	_, err = db.Exec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES "+strings.Join(argPlaces, ","), args...)
 	if err != nil {
 		c.Logger().Errorf("failed to insert chair: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
