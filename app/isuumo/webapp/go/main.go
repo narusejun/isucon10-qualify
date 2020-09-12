@@ -600,7 +600,7 @@ func postChair(c echo.Context) error {
 
 		currentPrice = int64(price)
 	}
-	_, err = db.Exec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, width_leve, height_level, depth_level, price_level) VALUES "+strings.Join(argPlaces, ","), args...)
+	_, err = db.Exec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, width_level, height_level, depth_level, price_level) VALUES "+strings.Join(argPlaces, ","), args...)
 	if err != nil {
 		c.Logger().Errorf("failed to insert chair: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
