@@ -938,23 +938,24 @@ func searchEstateNazotte(c echo.Context) error {
 	}
 	poly := geo.NewPolygon(polyPoints)
 
-	estatesInPolygonIDs := getEmptyInt64Slice()
-	defer releaseInt64Slice(estatesInPolygonIDs)
+	estatesInPolygonIDs := getEmptyIntSlice()
+	defer releaseIntSlice(estatesInPolygonIDs)
 
 	for _, estate := range estatesInBoundingBox {
 		if poly.Contains(geo.NewPoint(estate.Latitude, estate.Longitude)) {
-			estatesInPolygonIDs = append(estatesInPolygonIDs, estate.ID)
+			estatesInPolygonIDs = append(estatesInPolygonIDs, int(estate.ID))
 		}
 	}
 
 	estatesInPolygon := getEmptyEstateSlice()
 	defer releaseEstateSlice(estatesInPolygon)
 
+	if len(estatesInPolygonIDs) == 0 {
+		return JSON(c, http.StatusOK, EstateSearchResponse{Estates: estatesInPolygon, Count: 0})
+	}
+
 	err = db.Select(&estatesInPolygon, "SELECT * FROM estate WHERE id IN (?) ORDER BY popularity DESC, id ASC", estatesInPolygonIDs)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return JSON(c, http.StatusOK, ChairSearchResponse{Count: 0, Chairs: []Chair{}})
-		}
 		c.Logger().Errorf("searchChairs DB execution error : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}

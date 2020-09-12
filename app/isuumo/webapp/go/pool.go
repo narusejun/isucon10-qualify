@@ -50,14 +50,14 @@ func releaseGeoPointSlice(s []*geo.Point) {
 }
 
 // []int64のプール
-var int64Pool = sync.Pool{New: func() interface{} {
-	return []int64{}
+var intPool = sync.Pool{New: func() interface{} {
+	return []int{}
 }}
 
-func getEmptyInt64Slice() []int64 {
-	return int64Pool.Get().([]int64)
+func getEmptyIntSlice() []int {
+	return intPool.Get().([]int)
 }
 
-func releaseInt64Slice(s []int64) {
-	int64Pool.Put(s[:0])
+func releaseIntSlice(s []int) {
+	intPool.Put(s[:0])
 }
