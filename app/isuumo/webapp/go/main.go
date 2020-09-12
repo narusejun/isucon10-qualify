@@ -233,7 +233,7 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 	if getEnv("MYSQL_UNIX_DOMAIN_SOCKET", "0") == "1" {
 		dsn = fmt.Sprintf("%v:%v@unix(/var/run/mysqld/mysqld.sock)/%v", mc.User, mc.Password, mc.DBName)
 	} else {
-		// dsn = fmt.Sprintf("%v:%v@tcp(%v:%v)/%v", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
+		dsn = fmt.Sprintf("%v:%v@tcp(%v:%v)/%v", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
 	}
 	return sqlx.Open("mysql", dsn)
 }
