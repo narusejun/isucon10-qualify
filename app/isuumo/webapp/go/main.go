@@ -407,7 +407,7 @@ func postChair(c echo.Context) error {
 	if currentPrice <= currentButtom {
 		lowPricedChairMutex.Lock()
 		lowPricedChair = nil
-		lowPricedChairMutex.RLock()
+		lowPricedChairMutex.Unlock()
 	}
 
 	return c.NoContent(http.StatusCreated)
