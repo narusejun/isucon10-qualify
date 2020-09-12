@@ -872,7 +872,7 @@ func searchEstates(c echo.Context) error {
 	}
 
 	if c.QueryParam("features") != "" {
-		searchQuery = "SELECT * FROM estate INNER JOIN (SELECT estate_id FROM estate_feature WHERE feature_id IN (:FEATURES) GROUP BY estate_id HAVING COUNT(*) = :FEATURES_NUM ) TMP ON estate.id = TMP.estate_id WHERE "
+		searchQuery = "SELECT id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity FROM estate INNER JOIN (SELECT estate_id FROM estate_feature WHERE feature_id IN (:FEATURES) GROUP BY estate_id HAVING COUNT(*) = :FEATURES_NUM ) TMP ON estate.id = TMP.estate_id WHERE "
 		countQuery = "SELECT COUNT(*) FROM estate INNER JOIN (SELECT estate_id FROM estate_feature WHERE feature_id IN (:FEATURES) GROUP BY estate_id HAVING COUNT(*) = :FEATURES_NUM ) TMP ON estate.id = TMP.estate_id WHERE "
 
 		var ids []string
