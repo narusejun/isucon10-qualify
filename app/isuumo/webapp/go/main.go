@@ -887,7 +887,7 @@ func searchEstates(c echo.Context) error {
 		countQuery = strings.ReplaceAll(countQuery, ":FEATURES", strings.Join(ids, ","))
 	}
 
-	if len(conditions) == 0 {
+	if len(conditions) == 0 || c.QueryParam("features") != "" {
 		c.Echo().Logger.Infof("searchEstates search condition not found")
 		return c.NoContent(http.StatusBadRequest)
 	}
