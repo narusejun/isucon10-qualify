@@ -37,18 +37,6 @@ CREATE TABLE isuumo.chair
     stock       INTEGER         NOT NULL
 );
 
-CREATE TABLE isuumo.chair_feature
-(
-    chair_id         INTEGER         NOT NULL PRIMARY KEY,
-    feature_id       INTEGER         NOT NULL PRIMARY KEY
-);
-
-CREATE TABLE isuumo.estate_feature
-(
-    estate_id        INTEGER         NOT NULL PRIMARY KEY,
-    feature_id       INTEGER         NOT NULL PRIMARY KEY
-);
-
 CREATE INDEX estate1 ON isuumo.estate (door_width, door_height, popularity, id);
 CREATE INDEX estate2 ON isuumo.estate (rent, id);
 CREATE INDEX estate3 ON isuumo.estate (rent, popularity, id);
