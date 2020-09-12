@@ -4,7 +4,7 @@
 # You can copy this to one of:
 # - "/etc/mysql/my.cnf" to set global options,
 # - "~/.my.cnf" to set user-specific options.
-# 
+#
 # One can use all long options that the program supports.
 # Run program with --help to get a list of available options and with
 # --print-defaults to see which it would actually understand and use.
@@ -40,7 +40,7 @@ skip-external-locking
 #
 # Instead of skip-networking the default is now to listen only on
 # localhost which is more compatible and is not less secure.
-bind-address            = 127.0.0.1
+bind-address            = 0.0.0.0
 #
 # * Fine Tuning
 #
@@ -51,7 +51,7 @@ thread_cache_size       = 8
 # This replaces the startup script and checks MyISAM tables if needed
 # the first time they are touched
 myisam-recover-options  = BACKUP
-#max_connections        = 100
+max_connections=1000  # <- connection の limit を更新
 #table_open_cache       = 64
 #thread_concurrency     = 10
 #
@@ -93,6 +93,13 @@ max_binlog_size   = 100M
 # InnoDB is enabled by default with a 10MB datafile in /var/lib/mysql/.
 # Read the manual for more InnoDB related options. There are many!
 #
+
+innodb_buffer_pool_size = 1GB # ディスクイメージをメモリ上にバッファさせる値をきめる設定値(メモリの75%くらい)
+innodb_flush_log_at_trx_commit = 2 # 1に設定するとトランザクション単位でログを出力するが 2 を指定すると1秒間に1回ログファイルに出力するようになる
+innodb_flush_method = O_DIRECT # データファイル、ログファイルの読み書き方式を指定する(実験する価値はある)
+#innodb_log_file_size=250MB # InnoDBの更新ログを記録するディスク上のファイルサイズ(innodb_buffer_pool_sizeの4分の1程度)
+innodb_file_per_table=ON # InnoDBのデータ領域をテーブルごとに変える
+
 # * Security Features
 #
 # Read the manual, too, if you want chroot!
