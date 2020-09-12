@@ -244,6 +244,8 @@ func main() {
 	e.Debug = true
 	e.Logger.SetLevel(log.DEBUG)
 
+	echoPProf(e)
+
 	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
