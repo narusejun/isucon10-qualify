@@ -454,12 +454,12 @@ func postChair(c echo.Context) error {
 		}
 
 		// isuumo.chair_featureに追加
-		for _, f := range strings.Split(features, ",") {
-			if _, err := tx.Exec("INSERT INTO chair_feature (chair_id, feature_id) VALUES (?, ?)", id, chairFeatureMap[f]); err != nil {
-				c.Logger().Errorf("failed to insert chair: %v", err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
-		}
+		// for _, f := range strings.Split(features, ",") {
+		// 	if _, err := tx.Exec("INSERT INTO chair_feature (chair_id, feature_id) VALUES (?, ?)", id, chairFeatureMap[f]); err != nil {
+		// 		c.Logger().Errorf("failed to insert chair: %v", err)
+		// 		return c.NoContent(http.StatusInternalServerError)
+		// 	}
+		// }
 
 		currentPrice = int64(price)
 	}
