@@ -872,8 +872,8 @@ func searchEstates(c echo.Context) error {
 	}
 
 	if c.QueryParam("features") != "" {
-		searchQuery = "SELECT id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity FROM estate INNER JOIN (SELECT estate_id FROM estate_feature WHERE feature_id IN (:FEATURES) GROUP BY estate_id HAVING COUNT(*) = :FEATURES_NUM ) TMP ON estate.id = TMP.estate_id WHERE "
-		countQuery = "SELECT COUNT(*) FROM estate INNER JOIN (SELECT estate_id FROM estate_feature WHERE feature_id IN (:FEATURES) GROUP BY estate_id HAVING COUNT(*) = :FEATURES_NUM ) TMP ON estate.id = TMP.estate_id WHERE "
+		searchQuery = "SELECT id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity FROM estate INNER JOIN (SELECT estate_id FROM estate_feature WHERE feature_id IN (:FEATURES) GROUP BY estate_id HAVING COUNT(*) = :FEATURES_NUM ) TMP ON estate.id = TMP.estate_id"
+		countQuery = "SELECT COUNT(*) FROM estate INNER JOIN (SELECT estate_id FROM estate_feature WHERE feature_id IN (:FEATURES) GROUP BY estate_id HAVING COUNT(*) = :FEATURES_NUM ) TMP ON estate.id = TMP.estate_id"
 
 		var ids []string
 		for _, f := range strings.Split(c.QueryParam("features"), ",") {
@@ -909,6 +909,12 @@ func searchEstates(c echo.Context) error {
 
 	c.Logger().Info(searchQuery + searchCondition + limitOffset)
 	c.Logger().Info(countQuery + searchCondition)
+
+	if len(conditions) > 0 {
+		countQuery += " WHERE "
+		searchQuery += " WHERE "
+	}
+
 	var res EstateSearchResponse
 	err = db.Get(&res.Count, countQuery+searchCondition, params...)
 	if err != nil {
