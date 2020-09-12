@@ -1,6 +1,9 @@
 package main
 
-import "sync"
+import (
+	geo "github.com/kellydunn/golang-geo"
+	"sync"
+)
 
 // 変更禁止
 var constEmptyEstates = []Estate{}
@@ -30,4 +33,17 @@ func getEmptyChairSlice() []Chair {
 
 func releaseChairSlice(s []Chair) {
 	chairSlicePool.Put(s[:0])
+}
+
+// []*geo.Pointのプール
+var geoPointsPool = sync.Pool{New: func() interface{} {
+	return []*geo.Point{}
+}}
+
+func getEmptyGeoPointSlice() []*geo.Point {
+	return geoPointsPool.Get().([]*geo.Point)
+}
+
+func releaseGeoPointSlice(s []*geo.Point) {
+	geoPointsPool.Put(s[:0])
 }
