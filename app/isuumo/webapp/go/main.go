@@ -954,7 +954,13 @@ func searchEstateNazotte(c echo.Context) error {
 		return JSON(c, http.StatusOK, EstateSearchResponse{Estates: estatesInPolygon, Count: 0})
 	}
 
-	err = db.Select(&estatesInPolygon, "SELECT * FROM estate WHERE id IN (?) ORDER BY popularity DESC, id ASC", estatesInPolygonIDs)
+	query, args, err := sqlx.In("SELECT * FROM estate WHERE id IN (?) ORDER BY popularity DESC, id ASC", estatesInPolygonIDs)
+	if err != nil {
+		c.Logger().Errorf("sqlx.In FAIL!! : %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	err = db.Select(&estatesInPolygon, db.Rebind(query), args...)
 	if err != nil {
 		c.Logger().Errorf("searchChairs DB execution error : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
