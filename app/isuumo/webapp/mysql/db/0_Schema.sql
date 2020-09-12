@@ -37,10 +37,10 @@ CREATE TABLE isuumo.chair
     features    VARCHAR(64)     NOT NULL,
     kind        VARCHAR(64)     NOT NULL,
     popularity  INTEGER         NOT NULL,
-    stock       INTEGER         NOT NULL
+    stock       INTEGER         NOT NULL,
     width_level  INTEGER NOT NULL DEFAULT -1,
     height_level INTEGER NOT NULL DEFAULT -1,
-    depth_level   INTEGER NOT NULL DEFAULT -1
+    depth_level   INTEGER NOT NULL DEFAULT -1,
     price_level   INTEGER NOT NULL DEFAULT -1
 );
 
