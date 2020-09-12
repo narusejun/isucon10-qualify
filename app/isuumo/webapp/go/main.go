@@ -907,6 +907,8 @@ func searchEstates(c echo.Context) error {
 	searchCondition := strings.Join(conditions, " AND ")
 	limitOffset := " ORDER BY popularity DESC, id ASC LIMIT ? OFFSET ?"
 
+	c.Logger().Info(searchQuery + searchCondition + limitOffset)
+	c.Logger().Info(countQuery + searchCondition)
 	var res EstateSearchResponse
 	err = db.Get(&res.Count, countQuery+searchCondition, params...)
 	if err != nil {
