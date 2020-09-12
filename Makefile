@@ -13,6 +13,8 @@ MYSQL_LOG:=/var/log/mysql/mysql.log
 
 HOSTNAME:=$(shell hostname)
 
+branch:=master
+
 all: build
 
 .PHONY: clean
@@ -26,16 +28,19 @@ deploy: before build config-files start
 .PHONY: deploy-nolog
 deploy-nolog: before build-nolog config-files start
 
+.PHONY: checkout
+checkout:
+	git fetch && \
+	git reset --hard origin/$(BRANCH)
+
 .PHONY: build
-build:
-	git pull&& \
+build: checkout
 	cd $(BUILD_DIR); \
 	go build -o isuumo
 	# TODO
 
 .PHONY: build-nolog
-build-nolog:
-	git pull&& \
+build-nolog: checkout
 	cd $(BUILD_DIR); \
 	go build -tags release -o isuumo
 	# TODO
