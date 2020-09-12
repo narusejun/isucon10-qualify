@@ -9,3 +9,7 @@ import (
 func echoPProf(e *echo.Echo) {
 	return
 }
+
+func echoLogging(e *echo.Echo) {
+	return
+}
