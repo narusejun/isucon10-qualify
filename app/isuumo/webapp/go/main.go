@@ -1098,11 +1098,17 @@ func searchEstateNazotte(c echo.Context) error {
 	estatesInPolygon := getEmptyEstateSlice()
 	defer releaseEstateSlice(estatesInPolygon)
 
+	b := coordinates.getBoundingBox()
+
 	cachedEstatesMutex.RLock()
 	for _, estate := range cachedEstates {
-		if poly.Contains(geo.NewPoint(estate.Latitude, estate.Longitude)) {
-			estatesInPolygon = append(estatesInPolygon, estate)
+		if !(estate.Latitude <= b.BottomRightCorner.Latitude && estate.Latitude >= b.TopLeftCorner.Latitude && estate.Longitude <= b.BottomRightCorner.Longitude && estate.Longitude >= b.TopLeftCorner.Longitude) {
+			continue
 		}
+		if !poly.Contains(geo.NewPoint(estate.Latitude, estate.Longitude)) {
+			continue
+		}
+		estatesInPolygon = append(estatesInPolygon, estate)
 	}
 	cachedEstatesMutex.RUnlock()
 
