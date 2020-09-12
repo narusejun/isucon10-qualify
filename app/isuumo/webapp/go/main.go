@@ -57,6 +57,10 @@ type Chair struct {
 	Kind        string `db:"kind" json:"kind"`
 	Popularity  int64  `db:"popularity" json:"-"`
 	Stock       int64  `db:"stock" json:"-"`
+	WidthLevel  int    `db:"width_level" json:"-"`
+	HeightLevel int    `db:"height_level" json:"-"`
+	DepthLevel  int    `db:"depth_level" json:"-"`
+	PriceLevel  int    `db:"price_level" json:"-"`
 }
 
 type ChairSearchResponse struct {
@@ -484,7 +488,64 @@ func postChair(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		_, err := tx.Exec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock)
+
+		// width_level
+		widthLevel := -1
+		switch {
+		case width < 80:
+			widthLevel = 0
+		case width >= 80 && width < 110:
+			widthLevel = 1
+		case width >= 110 && width < 150:
+			widthLevel = 2
+		case width >= 150:
+			widthLevel = 3
+		}
+
+		// height_level
+		heightLevel := -1
+		switch {
+		case height < 80:
+			heightLevel = 0
+		case height >= 80 && height < 110:
+			heightLevel = 1
+		case height >= 110 && height < 150:
+			heightLevel = 2
+		case height >= 150:
+			heightLevel = 3
+		}
+
+		// depth_level
+		depthLevel := -1
+		switch {
+		case depth < 80:
+			depthLevel = 0
+		case depth >= 80 && depth < 110:
+			depthLevel = 1
+		case depth >= 110 && depth < 150:
+			depthLevel = 2
+		case depth >= 150:
+			depthLevel = 3
+		}
+
+		// rent_level
+		priceLevel := -1
+		switch {
+		case price < 3000:
+			priceLevel = 0
+		case price >= 3000 && price < 6000:
+			priceLevel = 1
+		case price >= 6000 && price < 9000:
+			priceLevel = 2
+		case price >= 9000 && price < 12000:
+			priceLevel = 3
+		case price >= 12000 && price < 15000:
+			priceLevel = 4
+		case price >= 15000:
+			priceLevel = 5
+		}
+
+		_, err := tx.Exec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, width_level, height_level, depth_level, price_level) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, widthLevel, heightLevel, depthLevel, priceLevel)
 		if err != nil {
 			c.Logger().Errorf("failed to insert chair: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
@@ -532,15 +593,8 @@ func searchChairs(c echo.Context) error {
 			c.Echo().Logger.Infof("priceRangeID invalid, %v : %v", c.QueryParam("priceRangeId"), err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-
-		if chairPrice.Min != -1 {
-			conditions = append(conditions, "price >= ?")
-			params = append(params, chairPrice.Min)
-		}
-		if chairPrice.Max != -1 {
-			conditions = append(conditions, "price < ?")
-			params = append(params, chairPrice.Max)
-		}
+		conditions = append(conditions, "price_level = ?")
+		params = append(params, chairPrice.ID)
 	}
 
 	if c.QueryParam("heightRangeId") != "" {
@@ -549,15 +603,8 @@ func searchChairs(c echo.Context) error {
 			c.Echo().Logger.Infof("heightRangeIf invalid, %v : %v", c.QueryParam("heightRangeId"), err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-
-		if chairHeight.Min != -1 {
-			conditions = append(conditions, "height >= ?")
-			params = append(params, chairHeight.Min)
-		}
-		if chairHeight.Max != -1 {
-			conditions = append(conditions, "height < ?")
-			params = append(params, chairHeight.Max)
-		}
+		conditions = append(conditions, "height_level = ?")
+		params = append(params, chairHeight.ID)
 	}
 
 	if c.QueryParam("widthRangeId") != "" {
@@ -566,15 +613,8 @@ func searchChairs(c echo.Context) error {
 			c.Echo().Logger.Infof("widthRangeID invalid, %v : %v", c.QueryParam("widthRangeId"), err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-
-		if chairWidth.Min != -1 {
-			conditions = append(conditions, "width >= ?")
-			params = append(params, chairWidth.Min)
-		}
-		if chairWidth.Max != -1 {
-			conditions = append(conditions, "width < ?")
-			params = append(params, chairWidth.Max)
-		}
+		conditions = append(conditions, "width_level = ?")
+		params = append(params, chairWidth.ID)
 	}
 
 	if c.QueryParam("depthRangeId") != "" {
@@ -583,15 +623,8 @@ func searchChairs(c echo.Context) error {
 			c.Echo().Logger.Infof("depthRangeId invalid, %v : %v", c.QueryParam("depthRangeId"), err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-
-		if chairDepth.Min != -1 {
-			conditions = append(conditions, "depth >= ?")
-			params = append(params, chairDepth.Min)
-		}
-		if chairDepth.Max != -1 {
-			conditions = append(conditions, "depth < ?")
-			params = append(params, chairDepth.Max)
-		}
+		conditions = append(conditions, "depth_level = ?")
+		params = append(params, chairDepth.ID)
 	}
 
 	if c.QueryParam("kind") != "" {
