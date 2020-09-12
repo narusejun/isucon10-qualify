@@ -21,10 +21,10 @@ clean:
 	rm -rf ${BIN_NAME}
 
 .PHONY: deploy
-deploy: build config-files start
+deploy: before build config-files start
 
 .PHONY: deploy-nolog
-deploy-nolog: build-nolog config-files start
+deploy-nolog: before build-nolog config-files start
 
 .PHONY: build
 build:
@@ -64,5 +64,3 @@ before:
 	mkdir -p ~/logs/$(when)
 	sudo mv -f $(NGX_LOG) ~/logs/$(when)/
 	sudo mv -f $(MYSQL_LOG) ~/logs/$(when)/
-	sudo systemctl restart $(NGX_SERVICE)
-	sudo systemctl restart $(MYSQL_SERVICE)
