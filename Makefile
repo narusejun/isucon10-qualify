@@ -11,6 +11,8 @@ NGX_LOG:=/var/log/nginx/access.log
 MYSQL_SERVICE=mariadb
 MYSQL_LOG:=/var/log/mariadb/mariadb.log
 
+HOSTNAME:=$(shell hostname)
+
 all: build
 
 .PHONY: clean
@@ -40,11 +42,11 @@ build-nolog:
 
 .PHONY: config-files
 config-files:
-	sudo rsync -v -r $$HOSTNAME/ /
+	sudo rsync -v -r $(HOSTNAME)/ /
 
 .PHONY: start
 start:
-	sh $$HOSTNAME/deploy.sh
+	sh $(HOSTNAME)/deploy.sh
 
 .PHONY: pprof
 pprof:
