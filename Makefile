@@ -40,11 +40,11 @@ build-nolog:
 
 .PHONY: config-files
 config-files:
-	sudo rsync -r $(HOSTNAME)/ /
+	sudo rsync -v -r ${HOSTNAME}/ /
 
 .PHONY: start
 start:
-	sh $(HOSTNAME)/deploy.sh
+	sh ${HOSTNAME}/deploy.sh
 
 .PHONY: pprof
 pprof:
