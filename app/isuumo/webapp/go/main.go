@@ -360,6 +360,8 @@ func postChair(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	var currentPrice int64
+
 	tx, err := db.Begin()
 	if err != nil {
 		c.Logger().Errorf("failed to begin tx: %v", err)
@@ -390,15 +392,23 @@ func postChair(c echo.Context) error {
 			c.Logger().Errorf("failed to insert chair: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
+
+		currentPrice = int64(price)
 	}
 	if err := tx.Commit(); err != nil {
 		c.Logger().Errorf("failed to commit tx: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	lowPricedChairMutex.Lock()
-	lowPricedChair = nil
-	lowPricedChairMutex.Unlock()
+	lowPricedChairMutex.RLock()
+	currentButtom := lowPricedChair.Chairs[len(lowPricedChair.Chairs)-1].Price
+	lowPricedChairMutex.RUnlock()
+
+	if currentPrice <= currentButtom {
+		lowPricedChairMutex.Lock()
+		lowPricedChair = nil
+		lowPricedChairMutex.RLock()
+	}
 
 	return c.NoContent(http.StatusCreated)
 }
@@ -590,26 +600,24 @@ func buyChair(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	// lowPricedChairMutex.RLock()
-	// for i, chair := range lowPricedChair.Chairs {
-	// 	if chair.ID == int64(id) {
-	// 		lowPricedChairMutex.RUnlock()
-	// 		lowPricedChairMutex.Lock()
+	target := -1
+	lowPricedChairMutex.RLock()
+	for i, chair := range lowPricedChair.Chairs {
+		if chair.ID == int64(id) {
+			target = i
+			break
+		}
+	}
+	lowPricedChairMutex.RUnlock()
 
-	// 		lowPricedChair.Chairs[i].Stock--
-	// 		if lowPricedChair.Chairs[i].Stock == 0 {
-	// 			lowPricedChair = nil
-	// 		}
-
-	// 		lowPricedChairMutex.Unlock()
-	// 		lowPricedChairMutex.RLock()
-	// 	}
-	// }
-	// lowPricedChairMutex.RUnlock()
-
-	lowPricedChairMutex.Lock()
-	lowPricedChair = nil
-	lowPricedChairMutex.Unlock()
+	if target > -1 {
+		lowPricedChairMutex.Lock()
+		lowPricedChair.Chairs[target].Stock--
+		if lowPricedChair.Chairs[target].Stock == 0 {
+			lowPricedChair = nil
+		}
+		lowPricedChairMutex.Unlock()
+	}
 
 	return c.NoContent(http.StatusOK)
 }
