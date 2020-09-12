@@ -100,7 +100,8 @@ innodb_flush_method = O_DIRECT # データファイル、ログファイルの�
 #innodb_log_file_size=250MB # InnoDBの更新ログを記録するディスク上のファイルサイズ(innodb_buffer_pool_sizeの4分の1程度)
 innodb_file_per_table=ON # InnoDBのデータ領域をテーブルごとに変える
 
-innodb_sort_buffer_size = 1GB
+tmp_table_size=1G
+max_heap_table_size=1G
 
 # * Security Features
 #
