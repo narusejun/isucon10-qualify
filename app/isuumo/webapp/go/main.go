@@ -467,15 +467,13 @@ func postChair(c echo.Context) error {
 
 	var currentPrice int64
 
-	// tx, err := db.Begin()
-	// if err != nil {
-	// 	c.Logger().Errorf("failed to begin tx: %v", err)
-	// 	return c.NoContent(http.StatusInternalServerError)
-	// }
-	// defer tx.Rollback()
-
-	chairs := make([]*Chair, len(records))
-	for idx, row := range records {
+	tx, err := db.Begin()
+	if err != nil {
+		c.Logger().Errorf("failed to begin tx: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	defer tx.Rollback()
+	for _, row := range records {
 		rm := RecordMapper{Record: row}
 		id := rm.NextInt()
 		name := rm.NextString()
@@ -494,21 +492,6 @@ func postChair(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		chairs[idx] = &Chair{
-			ID:          int64(id),
-			Name:        name,
-			Description: description,
-			Thumbnail:   thumbnail,
-			Price:       int64(price),
-			Height:      int64(height),
-			Width:       int64(width),
-			Depth:       int64(depth),
-			Color:       color,
-			Features:    features,
-			Kind:        kind,
-			Popularity:  int64(popularity),
-			Stock:       int64(stock),
-		}
 
 		// width_level
 		widthLevel := -1
@@ -522,7 +505,6 @@ func postChair(c echo.Context) error {
 		case width >= 150:
 			widthLevel = 3
 		}
-		chairs[idx].WidthLevel = widthLevel
 
 		// height_level
 		heightLevel := -1
@@ -536,7 +518,6 @@ func postChair(c echo.Context) error {
 		case height >= 150:
 			heightLevel = 3
 		}
-		chairs[idx].HeightLevel = heightLevel
 
 		// depth_level
 		depthLevel := -1
@@ -550,7 +531,6 @@ func postChair(c echo.Context) error {
 		case depth >= 150:
 			depthLevel = 3
 		}
-		chairs[idx].DepthLevel = depthLevel
 
 		// rent_level
 		priceLevel := -1
@@ -568,7 +548,12 @@ func postChair(c echo.Context) error {
 		case price >= 15000:
 			priceLevel = 5
 		}
-		chairs[idx].PriceLevel = priceLevel
+
+		_, err := tx.Exec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, width_level, height_level, depth_level, price_level) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, widthLevel, heightLevel, depthLevel, priceLevel)
+		if err != nil {
+			c.Logger().Errorf("failed to insert chair: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
 
 		// isuumo.chair_featureに追加
 		// for _, f := range strings.Split(features, ",") {
@@ -584,15 +569,10 @@ func postChair(c echo.Context) error {
 
 		currentPrice = int64(price)
 	}
-	_, err = db.NamedExec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock, width_level, height_level, depth_level, price_level) VALUES(:id, :name, :description, :thumbnail, :price, :height, :width, :depth, :color, :features, :kind, :popularity, :stock, :width_level, :height_level, :depth_level, :price_level)", chairs)
-	if err != nil {
-		c.Logger().Errorf("failed to insert chair: %v", err)
+	if err := tx.Commit(); err != nil {
+		c.Logger().Errorf("failed to commit tx: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
-	// if err := tx.Commit(); err != nil {
-	// 	c.Logger().Errorf("failed to commit tx: %v", err)
-	// 	return c.NoContent(http.StatusInternalServerError)
-	// }
 
 	lowPricedChairMutex.RLock()
 	currentButtom := lowPricedChair.Chairs[len(lowPricedChair.Chairs)-1].Price
