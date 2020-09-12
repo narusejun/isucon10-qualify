@@ -886,7 +886,12 @@ func postEstate(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	defer tx.Rollback()
-	for _, row := range records {
+	argPlaces := make([]string, len(records))
+	args := make([]interface{}, len(records)*15)
+
+	fargPlaces := make([]string, 0, 1000)
+	fargs := make([]interface{}, 0, 1000)
+	for idx, row := range records {
 		rm := RecordMapper{Record: row}
 		id := rm.NextInt()
 		name := rm.NextString()
@@ -904,6 +909,19 @@ func postEstate(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
+		argPlaces[idx] = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+		args[idx*15+0] = id
+		args[idx*15+1] = name
+		args[idx*15+2] = description
+		args[idx*15+3] = thumbnail
+		args[idx*15+4] = address
+		args[idx*15+5] = latitude
+		args[idx*15+6] = longitude
+		args[idx*15+7] = rent
+		args[idx*15+8] = doorHeight
+		args[idx*15+9] = doorWidth
+		args[idx*15+10] = features
+		args[idx*15+11] = popularity
 
 		// width_level
 		widthLevel := -1
@@ -917,6 +935,7 @@ func postEstate(c echo.Context) error {
 		case doorWidth >= 150:
 			widthLevel = 3
 		}
+		args[idx*15+12] = widthLevel
 
 		// height_level
 		heightLevel := -1
@@ -930,6 +949,7 @@ func postEstate(c echo.Context) error {
 		case doorHeight >= 150:
 			heightLevel = 3
 		}
+		args[idx*15+13] = heightLevel
 
 		// rent_level
 		rentLevel := -1
@@ -943,12 +963,7 @@ func postEstate(c echo.Context) error {
 		case rent >= 150000:
 			rentLevel = 3
 		}
-
-		_, err := tx.Exec("INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity, width_level, height_level, rent_level) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, address, latitude, longitude, rent, doorHeight, doorWidth, features, popularity, widthLevel, heightLevel, rentLevel)
-		if err != nil {
-			c.Logger().Errorf("failed to insert estate: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
+		args[idx*15+14] = rentLevel
 
 		// isuumo.estate_featureに追加
 		for _, f := range strings.Split(features, ",") {
@@ -956,12 +971,22 @@ func postEstate(c echo.Context) error {
 				continue
 			}
 
-			if _, err := tx.Exec("INSERT INTO estate_feature (estate_id, feature_id) VALUES (?, ?)", id, estateFeatureMap[f]); err != nil {
-				c.Logger().Errorf("failed to insert estate: %v", err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
+			fargPlaces = append(fargPlaces, "(?, ?)")
+			fargs = append(fargs, id, estateFeatureMap[f])
 		}
 	}
+
+	_, err = tx.Exec("INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity, width_level, height_level, rent_level) VALUES "+strings.Join(argPlaces, ","), args...)
+	if err != nil {
+		c.Logger().Errorf("failed to insert estate: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	if _, err := tx.Exec("INSERT INTO estate_feature (estate_id, feature_id) VALUES "+strings.Join(fargPlaces, ","), fargs...); err != nil {
+		c.Logger().Errorf("failed to insert estate: %v", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
 	if err := tx.Commit(); err != nil {
 		c.Logger().Errorf("failed to commit tx: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
