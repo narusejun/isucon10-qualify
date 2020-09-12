@@ -69,7 +69,3 @@ CREATE INDEX chair1 ON isuumo.chair (stock, price, id);
 CREATE INDEX chair2 ON isuumo.chair (price, stock);
 CREATE INDEX chair3 ON isuumo.chair (kind, stock);
 CREATE INDEX chair4 ON isuumo.chair (price, stock, popularity, id);
-
-
-SET GLOBAL long_query_time = 0.2;
-SET GLOBAL slow_query_log = 1;
