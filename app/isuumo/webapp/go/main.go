@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,6 +33,9 @@ var estateSearchCondition EstateSearchCondition
 
 var lowPricedChair *ChairListResponse
 var lowPricedChairMutex sync.RWMutex
+
+var cachedEstates = map[int]Estate{}
+var cachedEstatesMutex sync.RWMutex
 
 // chairのfeature -> feature idへのマップ
 var chairFeatureMap = map[string]int{}
@@ -1094,17 +1098,50 @@ func searchEstateNazotte(c echo.Context) error {
 		return JSON(c, http.StatusOK, EstateSearchResponse{Estates: estatesInPolygon, Count: 0})
 	}
 
-	query, args, err := sqlx.In("SELECT * FROM estate WHERE id IN (?) ORDER BY popularity DESC, id ASC", estatesInPolygonIDs)
-	if err != nil {
-		c.Logger().Errorf("sqlx.In FAIL!! : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
+	missingIDs := getEmptyIntSlice()
+	defer releaseIntSlice(missingIDs)
+
+	cachedEstatesMutex.RLock()
+	for _, id := range estatesInPolygonIDs {
+		if data, ok := cachedEstates[id]; ok {
+			estatesInPolygon = append(estatesInPolygon, data)
+		} else {
+			missingIDs = append(missingIDs, id)
+		}
+	}
+	cachedEstatesMutex.RUnlock()
+
+	if len(missingIDs) > 0 {
+		missingEstates := getEmptyEstateSlice()
+		defer releaseEstateSlice(missingEstates)
+
+		query, args, err := sqlx.In("SELECT * FROM estate WHERE id IN (?)", missingIDs)
+		if err != nil {
+			c.Logger().Errorf("sqlx.In FAIL!! : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		err = db.Select(&missingEstates, db.Rebind(query), args...)
+		if err != nil {
+			c.Logger().Errorf("searchChairs DB execution error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		estatesInPolygon = append(estatesInPolygon, missingEstates...)
+
+		cachedEstatesMutex.Lock()
+		for _, estate := range missingEstates {
+			cachedEstates[int(estate.ID)] = estate
+		}
+		cachedEstatesMutex.Unlock()
 	}
 
-	err = db.Select(&estatesInPolygon, db.Rebind(query), args...)
-	if err != nil {
-		c.Logger().Errorf("searchChairs DB execution error : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
+	sort.Slice(estatesInPolygon, func(i, j int) bool {
+		if estatesInPolygon[i].Popularity == estatesInPolygon[j].Popularity {
+			return estatesInPolygon[i].ID < estatesInPolygon[j].ID
+		}
+		return estatesInPolygon[i].Popularity > estatesInPolygon[j].Popularity
+	})
 
 	var re EstateSearchResponse
 	if len(estatesInPolygon) > NazotteLimit {
