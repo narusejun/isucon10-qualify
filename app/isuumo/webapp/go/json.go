@@ -1,9 +1,14 @@
 package main
 
 import (
-	"github.com/goccy/go-json"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/labstack/echo"
 )
+
+var json = jsoniter.Config{
+	EscapeHTML:                    false,
+	ObjectFieldMustBeSimpleString: true,
+}.Froze()
 
 // json json-iterator使用
 func JSON(c echo.Context, code int, i interface{}) error {

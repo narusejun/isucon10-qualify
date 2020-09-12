@@ -3,12 +3,11 @@ module github.com/isucon/isucon10-qualify/isuumo
 go 1.14
 
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 // indirect
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/goccy/go-json v0.1.10
 	github.com/jmoiron/sqlx v1.2.0
+	github.com/json-iterator/go v1.1.10
 	github.com/kellydunn/golang-geo v0.7.0
 	github.com/kylelemons/go-gypsy v1.0.0 // indirect
 	github.com/labstack/echo v3.3.10+incompatible
