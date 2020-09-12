@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -27,6 +28,9 @@ var db *sqlx.DB
 var mySQLConnectionData *MySQLConnectionEnv
 var chairSearchCondition ChairSearchCondition
 var estateSearchCondition EstateSearchCondition
+
+var lowPricedChair *ChairListResponse
+var lowPricedChairMutex sync.RWMutex
 
 type InitializeResponse struct {
 	Language string `json:"language"`
@@ -391,6 +395,11 @@ func postChair(c echo.Context) error {
 		c.Logger().Errorf("failed to commit tx: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
+
+	lowPricedChairMutex.Lock()
+	lowPricedChair = nil
+	lowPricedChairMutex.Unlock()
+
 	return c.NoContent(http.StatusCreated)
 }
 
@@ -581,6 +590,27 @@ func buyChair(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	// lowPricedChairMutex.RLock()
+	// for i, chair := range lowPricedChair.Chairs {
+	// 	if chair.ID == int64(id) {
+	// 		lowPricedChairMutex.RUnlock()
+	// 		lowPricedChairMutex.Lock()
+
+	// 		lowPricedChair.Chairs[i].Stock--
+	// 		if lowPricedChair.Chairs[i].Stock == 0 {
+	// 			lowPricedChair = nil
+	// 		}
+
+	// 		lowPricedChairMutex.Unlock()
+	// 		lowPricedChairMutex.RLock()
+	// 	}
+	// }
+	// lowPricedChairMutex.RUnlock()
+
+	lowPricedChairMutex.Lock()
+	lowPricedChair = nil
+	lowPricedChairMutex.Unlock()
+
 	return c.NoContent(http.StatusOK)
 }
 
@@ -589,21 +619,27 @@ func getChairSearchCondition(c echo.Context) error {
 }
 
 func getLowPricedChair(c echo.Context) error {
-	chairs := getEmptyChairSlice()
-	defer releaseChairSlice(chairs)
+	lowPricedChairMutex.RLock()
+	defer lowPricedChairMutex.RUnlock()
 
-	query := `SELECT * FROM chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT ?`
-	err := db.Select(&chairs, query, Limit)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.Logger().Error("getLowPricedChair not found")
-			return JSON(c, http.StatusOK, ChairListResponse{constEmptyChairs})
+	if lowPricedChair == nil {
+		chairs := getEmptyChairSlice()
+		//defer releaseChairSlice(chairs)
+
+		query := `SELECT * FROM chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT ?`
+		err := db.Select(&chairs, query, Limit)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				c.Logger().Error("getLowPricedChair not found")
+				return JSON(c, http.StatusOK, ChairListResponse{constEmptyChairs})
+			}
+			c.Logger().Errorf("getLowPricedChair DB execution error : %v", err)
+			return c.NoContent(http.StatusInternalServerError)
 		}
-		c.Logger().Errorf("getLowPricedChair DB execution error : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
 
-	return JSON(c, http.StatusOK, ChairListResponse{Chairs: chairs})
+		lowPricedChair = &ChairListResponse{Chairs: chairs}
+	}
+	return JSON(c, http.StatusOK, lowPricedChair)
 }
 
 func getEstateDetail(c echo.Context) error {
