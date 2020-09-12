@@ -82,6 +82,9 @@ type Estate struct {
 	DoorWidth   int64   `db:"door_width" json:"doorWidth"`
 	Features    string  `db:"features" json:"features"`
 	Popularity  int64   `db:"popularity" json:"-"`
+	WidthLevel  int     `db:"width_level" json:"-"`
+	HeightLevel int     `db:"height_level" json:"-"`
+	RentLevel   int     `db:"rent_level" json:"-"`
 }
 
 // EstateSearchResponse estate/searchへのレスポンスの形式
@@ -832,7 +835,47 @@ func postEstate(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		_, err := tx.Exec("INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, address, latitude, longitude, rent, doorHeight, doorWidth, features, popularity)
+
+		// width_level
+		widthLevel := -1
+		switch {
+		case doorWidth < 80:
+			widthLevel = 0
+		case doorWidth >= 80 && doorWidth < 110:
+			widthLevel = 1
+		case doorWidth >= 110 && doorWidth < 150:
+			widthLevel = 2
+		case doorWidth >= 150:
+			widthLevel = 3
+		}
+
+		// height_level
+		heightLevel := -1
+		switch {
+		case doorHeight < 80:
+			heightLevel = 0
+		case doorHeight >= 80 && doorHeight < 110:
+			heightLevel = 1
+		case doorHeight >= 110 && doorHeight < 150:
+			heightLevel = 2
+		case doorHeight >= 150:
+			heightLevel = 3
+		}
+
+		// rent_level
+		rentLevel := -1
+		switch {
+		case rent < 50000:
+			rentLevel = 0
+		case rent >= 50000 && rent < 100000:
+			rentLevel = 1
+		case rent >= 100000 && rent < 150000:
+			rentLevel = 2
+		case rent >= 150000:
+			rentLevel = 3
+		}
+
+		_, err := tx.Exec("INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity, width_level, height_level, rent_level) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, address, latitude, longitude, rent, doorHeight, doorWidth, features, popularity, widthLevel, heightLevel, rentLevel)
 		if err != nil {
 			c.Logger().Errorf("failed to insert estate: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
@@ -870,15 +913,8 @@ func searchEstates(c echo.Context) error {
 			c.Echo().Logger.Infof("doorHeightRangeID invalid, %v : %v", c.QueryParam("doorHeightRangeId"), err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-
-		if doorHeight.Min != -1 {
-			conditions = append(conditions, "door_height >= ?")
-			params = append(params, doorHeight.Min)
-		}
-		if doorHeight.Max != -1 {
-			conditions = append(conditions, "door_height < ?")
-			params = append(params, doorHeight.Max)
-		}
+		conditions = append(conditions, "height_level = ?")
+		params = append(params, doorHeight.ID)
 	}
 
 	if c.QueryParam("doorWidthRangeId") != "" {
@@ -887,15 +923,8 @@ func searchEstates(c echo.Context) error {
 			c.Echo().Logger.Infof("doorWidthRangeID invalid, %v : %v", c.QueryParam("doorWidthRangeId"), err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-
-		if doorWidth.Min != -1 {
-			conditions = append(conditions, "door_width >= ?")
-			params = append(params, doorWidth.Min)
-		}
-		if doorWidth.Max != -1 {
-			conditions = append(conditions, "door_width < ?")
-			params = append(params, doorWidth.Max)
-		}
+		conditions = append(conditions, "width_level = ?")
+		params = append(params, doorWidth.ID)
 	}
 
 	if c.QueryParam("rentRangeId") != "" {
@@ -904,15 +933,8 @@ func searchEstates(c echo.Context) error {
 			c.Echo().Logger.Infof("rentRangeID invalid, %v : %v", c.QueryParam("rentRangeId"), err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-
-		if estateRent.Min != -1 {
-			conditions = append(conditions, "rent >= ?")
-			params = append(params, estateRent.Min)
-		}
-		if estateRent.Max != -1 {
-			conditions = append(conditions, "rent < ?")
-			params = append(params, estateRent.Max)
-		}
+		conditions = append(conditions, "rent_level = ?")
+		params = append(params, estateRent.ID)
 	}
 
 	if c.QueryParam("features") != "" {
