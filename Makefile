@@ -13,8 +13,8 @@ MYSQL_LOG:=/var/log/mysql/mysql.log
 
 HOSTNAME:=$(shell hostname)
 
-branch:=master
-
+BRANCH:=master
+z
 all: build
 
 .PHONY: clean

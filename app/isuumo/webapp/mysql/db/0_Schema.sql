@@ -54,6 +54,8 @@ CREATE TABLE isuumo.estate_feature
 CREATE INDEX estate1 ON isuumo.estate (door_width, door_height, popularity, id);
 CREATE INDEX estate2 ON isuumo.estate (rent, id);
 CREATE INDEX estate3 ON isuumo.estate (rent, popularity, id);
+CREATE INDEX estate4 ON isuumo.estate (latitude, longitude, popularity, id);
+CREATE INDEX estate5 ON isuumo.estate (id, popularity);
 
 CREATE INDEX chair1 ON isuumo.chair (stock, price, id);
 CREATE INDEX chair2 ON isuumo.chair (price, stock);
