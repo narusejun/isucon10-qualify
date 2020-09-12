@@ -8,8 +8,8 @@ APP_LOCAL_URL:=http://localhost:1323
 NGX_SERVICE=nginx
 NGX_LOG:=/var/log/nginx/access.log
 
-MYSQL_SERVICE=mariadb
-MYSQL_LOG:=/var/log/mariadb/mariadb.log
+MYSQL_SERVICE=mysql
+MYSQL_LOG:=/var/log/mysql/mysql.log
 
 HOSTNAME:=$(shell hostname)
 
@@ -62,5 +62,7 @@ kataru:
 before:
 	$(eval when := $(shell date "+%s"))
 	mkdir -p ~/logs/$(when)
+	sudo touch $(NGX_LOG)
+	sudo touch $(MYSQL_LOG)
 	sudo mv -f $(NGX_LOG) ~/logs/$(when)/
 	sudo mv -f $(MYSQL_LOG) ~/logs/$(when)/
